@@ -1,61 +1,41 @@
-// app/api/auth/register/route.ts
-import { NextResponse } from "next/server";
-import { prisma } from "../../../../lib/prisma";
-import { hashPassword, signToken, setAuthCookie } from "../../../../lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
-export const runtime = "nodejs";
+export async function POST(req: NextRequest) {
+  const { email, password, name } = await req.json();
 
-export async function POST(req: Request) {
-  try {
-    const body = await req.json().catch(() => null);
-    if (!body) {
-      return NextResponse.json(
-        { error: "Geçersiz istek gövdesi." },
-        { status: 400 }
-      );
-    }
+  // 1) aynı mail var mı
+  const existing = await prisma.user.findUnique({
+    where: { email },
+  });
 
-    const { email, password, name } = body;
+  if (existing) {
+    return NextResponse.json(
+      { error: "Bu e-posta zaten kayıtlı" },
+      { status: 400 }
+    );
+  }
 
-    if (!email || !password) {
-      return NextResponse.json(
-        { error: "Email ve şifre zorunlu." },
-        { status: 400 }
-      );
-    }
+  // 2) şifreyi hashle
+  const hashed = await bcrypt.hash(password, 10);
 
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      return NextResponse.json(
-        { error: "Bu email zaten kayıtlı." },
-        { status: 400 }
-      );
-    }
+  // 3) kullanıcı oluştur
+  const user = await prisma.user.create({
+    data: {
+      email,
+      passwordHash: hashed,   // 👈 burada password değil passwordHash
+      name: name || "",
+      // preferencesJson gibi alanların varsa buraya ekleyebilirsin
+    },
+  });
 
-    const hashed = await hashPassword(password);
-
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashed,
-        name: name || "",
-      },
-    });
-
-    const token = signToken({ userId: user.id });
-    setAuthCookie(token);
-
-    return NextResponse.json({
+  return NextResponse.json(
+    {
       id: user.id,
       email: user.email,
       name: user.name,
-      photoUrl: user.photoUrl,
-    });
-  } catch (err) {
-    console.error("REGISTER ERROR:", err);
-    return NextResponse.json(
-      { error: "Sunucu hatası (register)." },
-      { status: 500 }
-    );
-  }
+    },
+    { status: 201 }
+  );
 }
