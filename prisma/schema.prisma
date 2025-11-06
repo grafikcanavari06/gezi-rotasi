@@ -1,0 +1,124 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String       @id @default(cuid())
+  email          String       @unique
+  passwordHash   String?
+  name           String?
+  preferencesJson Json?
+  createdAt      DateTime     @default(now())
+
+  swipes     Swipe[]
+  routes     Route[]      // ← kullanıcıya ait rotalar
+  favorites  Favorite[]
+  userBadges UserBadge[]
+}
+
+model Place {
+  id                  String   @id @default(cuid())
+  name_tr             String
+  name_en             String?
+  description_tr      String?
+  description_en      String?
+  category            String?
+  imageUrl            String?
+  videoUrl            String?
+  googleMapsUrl       String?
+  latitude            Float?
+  longitude           Float?
+  isActive            Boolean  @default(true)
+  isSponsored         Boolean  @default(false)
+  isForKids           Boolean  @default(false)
+  isRomantic          Boolean  @default(false)
+  isHistoric          Boolean  @default(false)
+  isInstagrammable    Boolean  @default(false)
+  isInsertableAsBreak Boolean  @default(false)
+  openHoursJson       Json?
+  createdAt           DateTime @default(now())
+
+  swipes    Swipe[]
+  favorites Favorite[]
+  events    Event[]
+}
+
+model Swipe {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  placeId   String
+  place     Place    @relation(fields: [placeId], references: [id])
+  direction String
+  createdAt DateTime @default(now())
+}
+
+model Route {
+  id         String   @id @default(cuid()) @map("id")
+
+  // User ile ilişki —> User.routes’i karşılar
+  userId     String?  @map("userId")
+  user       User?    @relation(fields: [userId], references: [id])
+
+  routeJson  Json     @map("routeJson")
+  shareToken String   @unique @map("shareToken")
+  createdAt  DateTime @default(now()) @map("createdAt")
+
+  @@map("Route") // Supabase’te tabloyu "Route" diye açtığımız için
+}
+
+model Event {
+  id        String   @id @default(cuid())
+  title_tr  String
+  title_en  String?
+  date      DateTime?
+  placeId   String?
+  place     Place?   @relation(fields: [placeId], references: [id])
+  isActive  Boolean  @default(true)
+}
+
+model Theme {
+  id       String  @id @default(cuid())
+  code     String  @unique
+  name_tr  String
+  name_en  String?
+  isActive Boolean @default(true)
+}
+
+model Badge {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name_tr     String
+  name_en     String?
+  criteriaJson Json?
+  userBadges  UserBadge[]
+}
+
+model UserBadge {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id])
+  badgeId  String
+  badge    Badge    @relation(fields: [badgeId], references: [id])
+  earnedAt DateTime @default(now())
+
+  @@unique([userId, badgeId])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  placeId   String
+  place     Place    @relation(fields: [placeId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, placeId])
+}
