@@ -1,47 +1,37 @@
-// app/api/auth/login/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
-import { signToken } from "@/lib/auth";
+import { compare } from "bcrypt";
+import { signToken } from "@/lib/jwt"; // senin yolun neyse
 
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => null);
-  if (!body) {
-    return NextResponse.json({ error: "Geçersiz gövde" }, { status: 400 });
-  }
-
-  const { email, password } = body as { email: string; password: string };
-
-  if (!email || !password) {
-    return NextResponse.json(
-      { error: "email ve password zorunludur" },
-      { status: 400 }
-    );
-  }
+  const { email, password } = await req.json();
 
   const user = await prisma.user.findUnique({
     where: { email },
   });
 
-  if (!user || !user.passwordHash) {
-    return NextResponse.json(
-      { error: "Kullanıcı bulunamadı" },
-      { status: 401 }
-    );
+  if (!user) {
+    return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 401 });
   }
 
-  const ok = await bcrypt.compare(password, user.passwordHash);
-  if (!ok) {
-    return NextResponse.json({ error: "Şifre hatalı" }, { status: 401 });
+  const isValid = await compare(password, user.password);
+  if (!isValid) {
+    return NextResponse.json({ error: "Geçersiz şifre" }, { status: 401 });
   }
 
-  const token = signToken({ userId: user.id, email: user.email });
+  // 🔴 BURASI HATA VERİYORDU
+  const token = signToken({
+    userId: user.id, // eğer signToken'ı string kabul edecek şekilde güncellediysen
+    email: user.email,
+  });
 
   const res = NextResponse.json({ ok: true });
+
   res.cookies.set("rota_token", token, {
     httpOnly: true,
-    sameSite: "lax",
+    secure: true,
     path: "/",
+    maxAge: 60 * 60 * 24 * 7, // 7 gün
   });
 
   return res;
