@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { compare } from "bcrypt";
+import bcrypt from "bcryptjs";
 import { signToken } from "@/lib/jwt"; // senin yolun neyse
 
 export async function POST(req: NextRequest) {
@@ -14,7 +14,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 401 });
   }
 
-  const isValid = await compare(password, user.password);
+  const isValid = await bcrypt.compare(password, user.password);
+
   if (!isValid) {
     return NextResponse.json({ error: "Geçersiz şifre" }, { status: 401 });
   }
