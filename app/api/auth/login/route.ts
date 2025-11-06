@@ -14,13 +14,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 401 });
   }
 
-  const isValid = await bcrypt.compare(password, user.password);
+  // Şifre alanın password değil, passwordHash
+  if (!user.passwordHash) {
+    return NextResponse.json({ error: "Bu kullanıcı için şifre ayarlı değil" }, { status: 400 });
+  }
+
+  const isValid = await bcrypt.compare(password, user.passwordHash);
   if (!isValid) {
     return NextResponse.json({ error: "Geçersiz şifre" }, { status: 401 });
   }
 
   const token = signToken({
-    userId: user.id, // prisma string de verse artık kabul ediyoruz
+    userId: user.id,
     email: user.email,
   });
 
