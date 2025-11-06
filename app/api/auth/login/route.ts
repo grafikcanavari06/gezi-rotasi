@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { signToken } from "@/lib/jwt"; // senin yolun neyse
+import { signToken } from "@/lib/jwt";
 
 export async function POST(req: NextRequest) {
   const { email, password } = await req.json();
@@ -15,14 +15,12 @@ export async function POST(req: NextRequest) {
   }
 
   const isValid = await bcrypt.compare(password, user.password);
-
   if (!isValid) {
     return NextResponse.json({ error: "Geçersiz şifre" }, { status: 401 });
   }
 
-  // 🔴 BURASI HATA VERİYORDU
   const token = signToken({
-    userId: user.id, // eğer signToken'ı string kabul edecek şekilde güncellediysen
+    userId: user.id, // prisma string de verse artık kabul ediyoruz
     email: user.email,
   });
 
@@ -32,7 +30,7 @@ export async function POST(req: NextRequest) {
     httpOnly: true,
     secure: true,
     path: "/",
-    maxAge: 60 * 60 * 24 * 7, // 7 gün
+    maxAge: 60 * 60 * 24 * 7,
   });
 
   return res;
